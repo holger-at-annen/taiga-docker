@@ -13,7 +13,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    command: rabbitmq-server --rabbit vm_memory_high_watermark 0.99
+    command: rabbitmq-server --rabbit vm_memory_high_watermark absolute 1024MiB
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
