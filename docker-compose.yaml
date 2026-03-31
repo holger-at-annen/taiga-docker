@@ -25,6 +25,13 @@ services:
   taiga-back:
     image: taigaio/taiga-back:latest
     environment:
+      LANGUAGE_CODE: ${LANGUAGE_CODE:-en}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-console}
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.mydomain.eu}
+      EMAIL_PORT: ${EMAIL_PORT:-25}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-False}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-False}
+      DEFAULT_FROM_EMAIL: ${EMAIL_FROM}
       TAIGA_SCHEME: ${TAIGA_SCHEME}
       TAIGA_DOMAIN: ${TAIGA_DOMAIN}
       WEBSOCKETS_SCHEME: ${WEBSOCKETS_SCHEME}
@@ -39,7 +46,6 @@ services:
       RABBITMQ_HOST: rabbitmq
       CELERY_BROKER_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}"
       TAIGA_EVENTS_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}"
-      EMAIL_BACKEND: ${EMAIL_BACKEND}
     volumes:
       - taiga-static-data:/taiga-back/static
       - taiga-media-data:/taiga-back/media
