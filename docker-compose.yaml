@@ -14,16 +14,16 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     environment:
-      #RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      #RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-      #RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
       RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      #RABBITMQ_USER: ${RABBITMQ_USER}
+      #RABBITMQ_PASS: ${RABBITMQ_PASS}
+      #RABBITMQ_VHOST: ${RABBITMQ_VHOST}
       RABBITMQ_HOST: rabbitmq
-      TAIGA_SECRET_KEY: ${SECRET_KEY}
-      TAIGA_URL: https://${TAIGA_DOMAIN}
+      #TAIGA_SECRET_KEY: ${SECRET_KEY}
+      #TAIGA_URL: https://${TAIGA_DOMAIN}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     restart: unless-stopped
@@ -125,6 +125,7 @@ services:
     depends_on:
       - taiga-front
       - taiga-back
+      - taiga-events
     restart: unless-stopped
 
   taiga-async:
@@ -141,6 +142,7 @@ services:
       RABBITMQ_HOST: rabbitmq
       CELERY_BROKER_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}"
       TAIGA_SECRET_KEY: ${SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY}
     volumes:
       - taiga-static-data:/taiga-back/static
       - taiga-media-data:/taiga-back/media
