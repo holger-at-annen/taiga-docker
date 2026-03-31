@@ -155,10 +155,10 @@ services:
   taiga-events:
     image: taigaio/taiga-events:latest
     environment:
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
-      RABBITMQ_HOST: rabbitmq
+      TAIGA_EVENTS_RABBITMQ_USER: ${RABBITMQ_USER}
+      TAIGA_EVENTS_RABBITMQ_PASS: ${RABBITMQ_PASS}
+      TAIGA_EVENTS_RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      TAIGA_EVENTS_RABBITMQ_HOST: rabbitmq
       TAIGA_SECRET_KEY: ${SECRET_KEY}
     depends_on:
       - rabbitmq
