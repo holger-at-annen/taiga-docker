@@ -37,6 +37,8 @@ services:
       RABBITMQ_PASS: ${RABBITMQ_PASS}
       RABBITMQ_VHOST: ${RABBITMQ_VHOST}
       RABBITMQ_HOST: rabbitmq
+      CELERY_BROKER_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}"
+      TAIGA_EVENTS_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}"
       EMAIL_BACKEND: ${EMAIL_BACKEND}
     volumes:
       - taiga-static-data:/taiga-back/static
