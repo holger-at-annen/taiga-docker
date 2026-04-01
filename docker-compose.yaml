@@ -67,6 +67,7 @@ services:
       LANGUAGE_CODE: ${LANGUAGE_CODE:-en}
       TAIGA_SCHEME: ${TAIGA_SCHEME}
       TAIGA_DOMAIN: ${TAIGA_DOMAIN}
+      TAIGA_WEBSOCKETS_URL: wss://${TAIGA_DOMAIN}
     restart: unless-stopped
 
   #taiga-gateway:
