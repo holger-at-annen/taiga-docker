@@ -1,0 +1,184 @@
+version: "3.8"
+
+services:
+  taiga-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - taiga-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    command: rabbitmq-server --rabbit vm_memory_high_watermark absolute 1024MiB
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
+      #RABBITMQ_USER: ${RABBITMQ_USER}
+      #RABBITMQ_PASS: ${RABBITMQ_PASS}
+      #RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      RABBITMQ_HOST: rabbitmq
+      #TAIGA_SECRET_KEY: ${SECRET_KEY}
+      #TAIGA_URL: https://${TAIGA_DOMAIN}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  taiga-back:
+    image: taigaio/taiga-back:latest
+    environment:
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-console}
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.mydomain.eu}
+      EMAIL_PORT: ${EMAIL_PORT:-25}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-False}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-False}
+      DEFAULT_FROM_EMAIL: ${EMAIL_FROM}
+      TAIGA_SCHEME: ${TAIGA_SCHEME}
+      TAIGA_DOMAIN: ${TAIGA_DOMAIN}
+      WEBSOCKETS_SCHEME: ${WEBSOCKETS_SCHEME}
+      TAIGA_SECRET_KEY: ${SECRET_KEY}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: taiga-db
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      RABBITMQ_HOST: rabbitmq
+      CELERY_BROKER_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}"
+      TAIGA_EVENTS_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}"
+    volumes:
+      - taiga-static-data:/taiga-back/static
+      - taiga-media-data:/taiga-back/media
+    depends_on:
+      - taiga-db
+      - rabbitmq
+    restart: unless-stopped
+
+  taiga-front:
+    image: taigaio/taiga-front:latest
+    environment:
+      LANGUAGE_CODE: ${LANGUAGE_CODE:-en}
+      TAIGA_SCHEME: ${TAIGA_SCHEME}
+      TAIGA_DOMAIN: ${TAIGA_DOMAIN}
+      TAIGA_WEBSOCKETS_URL: wss://${TAIGA_DOMAIN}
+    restart: unless-stopped
+
+  #taiga-gateway:
+   # image: nginx:stable-alpine
+   # depends_on:
+   #   - taiga-front
+   #   - taiga-back
+   # restart: unless-stopped
+
+  taiga-gateway:
+    image: nginx:stable-alpine
+    ports:
+      - "${PORT:-80}:80"
+    volumes:
+      - taiga-static-data:/taiga/static:ro
+      - taiga-media-data:/taiga/media:ro
+      command: >-
+      /bin/sh -c "
+        cat <<'EOF' > /etc/nginx/conf.d/default.conf
+server {
+    listen 80 default_server;
+    client_max_body_size 100M;
+    charset utf-8;
+
+    # Frontend
+    location / {
+        proxy_pass http://taiga-front/;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_redirect off;
+    }
+
+    # API
+    location /api/ {
+        proxy_pass http://taiga-back:8000/api/;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_redirect off;
+    }
+
+    # WebSocket Events (critical for real-time updates)
+    location /events {
+        proxy_pass http://taiga-events:8888/events;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Static & Media
+    location /static/ {
+        alias /taiga/static/;
+        expires 30d;
+    }
+    location /media/ {
+        alias /taiga/media/;
+        expires 30d;
+    }
+}
+EOF
+        nginx -g 'daemon off;'
+      "
+    depends_on:
+      - taiga-front
+      - taiga-back
+      - taiga-events
+    restart: unless-stopped
+
+  taiga-async:
+    image: taigaio/taiga-back:latest
+    entrypoint: /taiga-back/docker/async_entrypoint.sh
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: taiga-db
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      RABBITMQ_HOST: rabbitmq
+      CELERY_BROKER_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/${RABBITMQ_VHOST}"
+      TAIGA_SECRET_KEY: ${SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+    volumes:
+      - taiga-static-data:/taiga-back/static
+      - taiga-media-data:/taiga-back/media
+    depends_on:
+      - taiga-db
+      - rabbitmq
+    restart: unless-stopped
+
+  taiga-events:
+    image: taigaio/taiga-events:latest
+    environment:
+      TAIGA_EVENTS_RABBITMQ_USER: ${RABBITMQ_USER}
+      TAIGA_EVENTS_RABBITMQ_PASS: ${RABBITMQ_PASS}
+      TAIGA_EVENTS_RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      TAIGA_EVENTS_RABBITMQ_HOST: rabbitmq
+      TAIGA_SECRET_KEY: ${SECRET_KEY}
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+    
+volumes:
+  taiga-db-data:
+  rabbitmq-data:
+  taiga-static-data:
+  taiga-media-data:
